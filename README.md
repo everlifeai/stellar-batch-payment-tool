@@ -1,5 +1,19 @@
 # Batch Payment Tool for Stellar
 
+# To Do
+- Code cleanup
+- Make code more modular and reusable (80% OK)
+- Config validation functionality before the actual tool runs to make sure we are using the correct accounts
+- Check if all functions contain correct naming and comments (95% OK)
+
+## Installation
+Execute in terminal inside the root of the project:
+`npm install`
+
+## Start & Usage
+Again in terminal at root:
+`npm start`
+
 ## Background
 
 We will need a batch payment tool which can distribute EVER to set of accounts. One use for this tool will be to distribute the EVER bonuses after completion of token sale. Another use will be to distribute bounty tokens.

@@ -1,6 +1,6 @@
 # Batch Payment Tool for Stellar
 
-# To Do
+## To Do
 - Code cleanup
 - Make code more modular and reusable (80% OK)
 - Config validation functionality before the actual tool runs to make sure we are using the correct accounts

@@ -4,26 +4,14 @@ import os from 'os';
 import csv from 'csvtojson/v2';
 import Stellar from 'stellar-sdk';
 
-const outputFilePath = path.join(__dirname, '..', 'assets', 'output.csv');
-const allowTrustFilePath = path.join(__dirname, '..', 'assets', 'allowtrust.csv');
-
 /**
  * Create output csv file if not exist
  */
-const createFileIfNotExist = async () => { 
-    if (!fs.existsSync(outputFilePath)) {
-      await fs.writeFile(outputFilePath, `account,success,message${os.EOL}`, (err) => {
-          if (err) throw err;
-      });
-    }
-}
+const createFileIfNotExist = async (csvData, filePath) => { 
+    const outputFilePath = path.join(__dirname, '..', 'assets', filePath);
 
-/**
- * Create output csv file for allow trust if not exist
- */
-const createFileAllowTrustIfNotExist = async () => { 
-    if (!fs.existsSync(allowTrustFilePath)) {
-      await fs.writeFile(allowTrustFilePath, `account,allowtrust${os.EOL}`, (err) => {
+    if (!fs.existsSync(outputFilePath)) {
+      await fs.writeFile(outputFilePath, `${csvData}${os.EOL}`, (err) => {
           if (err) throw err;
       });
     }
@@ -43,18 +31,19 @@ const filterEmptyObjects = (objectArray) => objectArray.filter(value => Object.k
  * @param {string} message Message in case of an error
  */
 const appendLog = async (account, success, message) => {
+    const outputFilePath = path.join(__dirname, '..', 'assets', 'output.csv');
     await fs.appendFile(outputFilePath, `${account},${success},${message}${os.EOL}`, (err) => {
         if (err) throw err;
     });
 }
 
 /**
- * Add allow trust log to CSV file
+ * Add allowed Trust for account to CSV log file
  * @param {string} account Receiver account for which transaction has been executed
- * @param {boolean} success Transaction successful
  */
-const appendLogAllowTrust = async (account, success) => {
-    await fs.appendFile(allowTrustFilePath, `${account},${success}${os.EOL}`, (err) => {
+const appendLogAllowTrust = async (account) => {
+    const allowTrustFilePath = path.join(__dirname, '..', 'assets', 'allowtrust.csv');
+    await fs.appendFile(allowTrustFilePath, `${account}${os.EOL}`, (err) => {
         if (err) throw err;
     });
 }
@@ -73,6 +62,7 @@ const loadCsv = async (file) => {
  * @param {[ { any }]} filteredAccounts Used to determine how many transactions succeeded
  */
 const writeLogsForTransactions = (transactionsLog, filteredAccountsPubKeys) => {
+
   transactionsLog.map(log => {
       let resultJson = Stellar.xdr.TransactionResult.fromXDR(log.result_xdr, 'base64');
 
@@ -88,16 +78,6 @@ const writeLogsForTransactions = (transactionsLog, filteredAccountsPubKeys) => {
           }
       }
   });
-
-  if(filteredAccountsPubKeys.length === 0) {
-      console.log('Program finished successful!');
-  } else {
-      filteredAccountsPubKeys.map(pubKey => {
-          appendLog(pubKey, false, 'Transaction failed');
-      });
-
-      console.log('Program finished with errors!');
-  }
 }
 
 /**
@@ -106,17 +86,32 @@ const writeLogsForTransactions = (transactionsLog, filteredAccountsPubKeys) => {
  */
 const writeLogsForAllowTrustTransactions = (accounts) => {
     accounts.map(account => {
-        appendLogAllowTrust(account, true);
+        appendLogAllowTrust(account);
     });
-  }
+}
+
+const filterAlreadyTrustedAccounts = async (accountsPubKeys) => {
+    const csvAlreadyTrustedAccounts = await loadCsv('allowtrust.csv');
+    
+    csvAlreadyTrustedAccounts.map(row => {
+        let {account} = row;
+
+        if(accountsPubKeys.includes(account)) {
+            const index = accountsPubKeys.indexOf(account);
+            accountsPubKeys.splice(index, 1);
+        }
+    });
+
+    return accountsPubKeys;
+}
 
 export default {
   createFileIfNotExist,
-  createFileAllowTrustIfNotExist,
   filterEmptyObjects,
   appendLog,
   appendLogAllowTrust,
   loadCsv,
   writeLogsForTransactions,
-  writeLogsForAllowTrustTransactions
+  writeLogsForAllowTrustTransactions,
+  filterAlreadyTrustedAccounts
 };

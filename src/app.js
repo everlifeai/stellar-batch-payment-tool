@@ -1,9 +1,9 @@
-// TODO: use payment stream: https://github.com/dolcalmi/stellar-batch-payment/blob/master/lib/helpers/pay-stream.js#L39
-
 import config from './config/config';
 import utils from './utils/stellarTools';
 import fileTools from './utils/fileTools';
 import accountTools from './utils/accountTools';
+import stellarHelper from './helpers/stellar.helper';
+import toolHelper from './helpers/tool.helper';
 
 
 /**
@@ -11,45 +11,30 @@ import accountTools from './utils/accountTools';
  */
 async function start() {
 
-    fileTools.createFileIfNotExist();
+    fileTools.createFileIfNotExist('account,success,message', 'output.csv');
+    fileTools.createFileIfNotExist('account', 'allowtrust.csv');
+
     const csvData = await fileTools.loadCsv('input.csv');
 
+    // Check if account:
+    // 1. eexists
+    // 2. has a trustline to EVER asset
+    // 3. has allowed trust from issuance account
     let existingAccounts = fileTools.filterEmptyObjects(await accountTools.checkAccountExists(csvData));    
     let filteredAccounts = fileTools.filterEmptyObjects(accountTools.filterAccountsByTrustline(existingAccounts));
-    let filteredAccountsPubKeys = filteredAccounts.map(account => account.recipient);
+    let filteredAccountsPubKeys = filteredAccounts.map(accountObj => (accountObj.recipient));
+    let originalPubKeys = [...filteredAccountsPubKeys];
+    let filteredAccsPubKeysNotTrusted = await fileTools.filterAlreadyTrustedAccounts(filteredAccountsPubKeys);
 
-    // filter accounts that have allow trust from issuance account
-    const csvAllowTrustData = await fileTools.loadCsv('allowtrust.csv');
+    // Send allow trust to accounts which are not trusted yet and send EVER tokens
+    const allowTrustSuccess = await stellarHelper.sendAllowTrust(filteredAccsPubKeysNotTrusted);
 
-    csvAllowTrustData.map(row => {
-        const {account, trust} = row;
+    if(allowTrustSuccess) {
+        const transactionsLog = await utils.sendTransactions(filteredAccounts);
+        fileTools.writeLogsForTransactions(transactionsLog, originalPubKeys);
+    }
 
-        if(filteredAccountsPubKeys.includes(account)) {
-            const index = filteredAccountsPubKeys.indexOf(account);
-            filteredAccountsPubKeys.splice(index, 1);
-        }
-    });
-
-    console.log(filteredAccountsPubKeys);
-
-    try {
-        if(filteredAccountsPubKeys.length > 0) {
-            let promises = filteredAccountsPubKeys.map(pubKey => utils.allowTrust(pubKey, true));
-            let resolved = await Promise.all(promises);
-            console.log(resolved);
-    
-            // Write down all succeeded AllowTrust accounts
-            fileTools.createFileAllowTrustIfNotExist();
-            fileTools.writeLogsForAllowTrustTransactions(filteredAccountsPubKeys);
-        }
-
-    } catch(err) { /* Allow Trust already exists to account -> ignore error */  console.log(err); }
-    
-
-    const transactionsLog = await utils.sendTransactions(filteredAccounts);
-    console.log(transactionsLog);
-    fileTools.writeLogsForTransactions(transactionsLog, filteredAccountsPubKeys);
+    toolHelper.checkProgramExecution(filteredAccountsPubKeys);
 }
-
 
 start();

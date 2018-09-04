@@ -5,6 +5,7 @@
 - Make code more modular and reusable (80% OK)
 - Config validation functionality before the actual tool runs to make sure we are using the correct accounts
 - Check if all functions contain correct naming and comments (95% OK)
+- Payment stream research https://github.com/dolcalmi/stellar-batch-payment/blob/master/lib/helpers/pay-stream.js#L39
 
 ## Installation
 Execute in terminal inside the root of the project:

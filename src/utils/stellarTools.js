@@ -30,7 +30,6 @@ const validateRecipientExists = async (pub) => {
   try {
     return await server.loadAccount(pub);
   } catch (err) {
-    console.log('Account does not exist:', pub);
     return false;
   }
 }
@@ -102,12 +101,10 @@ const createAccount = async (funderPriv, recipient) => {
 
   try {
     const transactionResult = await server.submitTransaction(transaction);
-
     return true;
-
+    
   } catch (err) {
-    console.log(err);
-
+    throw err;
     return false;
   }
 }
